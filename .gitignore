@@ -42,3 +42,8 @@
 
 # Data files
 data/
+
+# ROS2 specific
+install/
+log/
+build/
