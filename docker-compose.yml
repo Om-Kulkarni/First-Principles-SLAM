@@ -1,0 +1,51 @@
+services:
+  slam:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fp_slam_container
+    volumes:
+      - .:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    network_mode: host
+    stdin_open: true
+    tty: true
+    privileged: true
+    command: bash
+
+  # Service for running the SLAM system
+  slam_system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fp_slam_system
+    volumes:
+      - .:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    network_mode: host
+    depends_on:
+      - slam
+    command: ros2 launch fp_launch slam_system.launch.py
+
+  # Service for running RViz visualization
+  rviz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fp_slam_rviz
+    volumes:
+      - .:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    network_mode: host
+    depends_on:
+      - slam
+    command: rviz2 -d /workspace/src/fp_launch/config/rviz_slam.rviz

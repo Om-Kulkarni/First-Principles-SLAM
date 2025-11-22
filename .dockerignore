@@ -1,0 +1,30 @@
+# Docker build files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Build directories
+build/
+install/
+log/
+
+# IDE files
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# ROS specific
+devel/
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Data files (optional - remove if you want to include data in container)
+data/
