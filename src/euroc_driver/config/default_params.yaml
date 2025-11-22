@@ -1,0 +1,19 @@
+# EuRoC Data Publisher Configuration
+
+euroc_data_publisher:
+  ros__parameters:
+    # Path to the dataset directory (should contain mav0 folder)
+    dataset_path: "/workspace/data/MH_01_easy/mav0"
+    
+    # Playback rate (1.0 = real-time, 0.5 = half speed, 2.0 = double speed)
+    playback_rate: 1.0
+    
+    # Whether to loop the dataset when it reaches the end
+    loop_playback: false
+    
+    # Whether to publish camera images (can be disabled to save bandwidth/computation)
+    publish_images: true
+    
+    # Sensor publishing rates (Hz) - from EuRoC sensor.yaml files
+    imu_rate_hz: 200.0      # IMU publishes at 200 Hz
+    camera_rate_hz: 20.0    # Cameras publish at 20 Hz
