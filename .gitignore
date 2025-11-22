@@ -47,3 +47,9 @@ data/
 install/
 log/
 build/
+
+# VsCode files
+.vscode/
+
+# Compilation database
+compile_commands.json
