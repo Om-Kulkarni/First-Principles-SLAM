@@ -53,3 +53,6 @@ build/
 
 # Compilation database
 compile_commands.json
+
+# copilot Agent Instructions
+.github/
