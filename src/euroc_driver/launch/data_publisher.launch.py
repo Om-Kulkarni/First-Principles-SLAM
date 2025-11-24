@@ -2,9 +2,19 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+import os
 
 
 def generate_launch_description():
+    # Get package directory
+    pkg_dir = get_package_share_directory('euroc_driver')
+    
+    # Config file paths
+    default_config = os.path.join(pkg_dir, 'config', 'default_params.yaml')
+    imu_config = os.path.join(pkg_dir, 'config', 'imu_config.yaml')
+    cam0_config = os.path.join(pkg_dir, 'config', 'cam0_config.yaml')
+    cam1_config = os.path.join(pkg_dir, 'config', 'cam1_config.yaml')
     # Declare launch arguments
     dataset_path_arg = DeclareLaunchArgument(
         'dataset_path',
@@ -36,12 +46,18 @@ def generate_launch_description():
         executable='data_publisher',
         name='euroc_data_publisher',
         output='screen',
-        parameters=[{
-            'dataset_path': LaunchConfiguration('dataset_path'),
-            'playback_rate': LaunchConfiguration('playback_rate'),
-            'loop_playback': LaunchConfiguration('loop_playback'),
-            'publish_images': LaunchConfiguration('publish_images'),
-        }],
+        parameters=[
+            default_config,
+            imu_config,
+            cam0_config,
+            cam1_config,
+            {
+                'dataset_path': LaunchConfiguration('dataset_path'),
+                'playback_rate': LaunchConfiguration('playback_rate'),
+                'loop_playback': LaunchConfiguration('loop_playback'),
+                'publish_images': LaunchConfiguration('publish_images'),
+            }
+        ],
         remappings=[
             # Remap topics if needed
             # ('imu/data', 'imu/data_raw'),

@@ -66,16 +66,21 @@ namespace euroc_driver
 		this->declare_parameter("playback_rate", 1.0);
 		this->declare_parameter("loop_playback", false);
 		this->declare_parameter("publish_images", true);
-		this->declare_parameter("imu_rate_hz", 200.0);
-		this->declare_parameter("camera_rate_hz", 20.0);
+		
+		// Sensor-specific rates from individual config files
+		this->declare_parameter("imu.rate_hz", 200.0);
+		this->declare_parameter("cam0.rate_hz", 20.0);
+		this->declare_parameter("cam1.rate_hz", 20.0);
 
 		// Get parameter values
 		dataset_path_ = this->get_parameter("dataset_path").as_string();
 		playback_rate_ = this->get_parameter("playback_rate").as_double();
 		loop_playback_ = this->get_parameter("loop_playback").as_bool();
 		publish_images_ = this->get_parameter("publish_images").as_bool();
-		imu_rate_hz_ = this->get_parameter("imu_rate_hz").as_double();
-		camera_rate_hz_ = this->get_parameter("camera_rate_hz").as_double();
+		
+		// Get sensor rates from individual config files
+		imu_rate_hz_ = this->get_parameter("imu.rate_hz").as_double();
+		camera_rate_hz_ = this->get_parameter("cam0.rate_hz").as_double();  // Use cam0 rate for both cameras
 
 		RCLCPP_INFO(this->get_logger(), "Dataset path: %s", dataset_path_.c_str());
 		RCLCPP_INFO(this->get_logger(), "Playback rate: %.2f", playback_rate_);

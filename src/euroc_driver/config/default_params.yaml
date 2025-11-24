@@ -13,7 +13,3 @@ euroc_data_publisher:
     
     # Whether to publish camera images (can be disabled to save bandwidth/computation)
     publish_images: true
-    
-    # Sensor publishing rates (Hz) - from EuRoC sensor.yaml files
-    imu_rate_hz: 200.0      # IMU publishes at 200 Hz
-    camera_rate_hz: 20.0    # Cameras publish at 20 Hz
