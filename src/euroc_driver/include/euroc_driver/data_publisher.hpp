@@ -8,6 +8,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.hpp>
 #include <opencv2/opencv.hpp>
+#include <rosgraph_msgs/msg/clock.hpp>
 
 #include "euroc_driver/csv_reader.hpp"
 #include "euroc_driver/data_parsers.hpp"
@@ -42,6 +43,7 @@ private:
     image_transport::Publisher image_publisher_cam1_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr velocity_publisher_;
+    rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_publisher_;
     
     // CSV readers
     std::unique_ptr<CSVReader> imu_reader_;
@@ -55,9 +57,8 @@ private:
     std::unique_ptr<CameraParser> cam1_parser_;
     std::unique_ptr<PoseParser> pose_parser_;
     
-    // Timers for publishing data
-    rclcpp::TimerBase::SharedPtr imu_timer_;
-    rclcpp::TimerBase::SharedPtr camera_timer_;
+    // Playback Thread
+    std::thread playback_thread_;
     
     // Parameters
     std::string dataset_path_;
@@ -72,6 +73,19 @@ private:
     uint64_t start_timestamp_;
     std::chrono::steady_clock::time_point start_time_;
     
+    // Buffers for storing the "next" item from each stream
+    struct StreamState {
+        bool active = false;
+        bool has_data = false;
+        uint64_t timestamp_ns = 0;
+        std::vector<std::string> raw_row;
+    };
+    
+    StreamState state_imu_;
+    StreamState state_cam0_;
+    StreamState state_cam1_;
+    StreamState state_pose_;
+
     /**
      * @brief Initialize the node parameters
      */
@@ -86,31 +100,21 @@ private:
      * @brief Initialize CSV readers and parsers
      */
     bool initializeReaders();
+
+    /**
+     * @brief Initialize Clock publisher
+     */
+    void initializeClock();
     
     /**
-     * @brief Main publishing loop for IMU and pose data
+     * @brief The main loop that drives playback
      */
-    void publishIMULoop();
+    void playbackLoop();
     
     /**
-     * @brief Main publishing loop for camera data
+     * @brief Helper to read the next row into a StreamState
      */
-    void publishCameraLoop();
-    
-    /**
-     * @brief Publish IMU data
-     */
-    void publishIMUData();
-    
-    /**
-     * @brief Publish camera data
-     */
-    void publishCameraData();
-    
-    /**
-     * @brief Publish pose data
-     */
-    void publishPoseData();
+    void advanceStream(StreamState& state, CSVReader& reader, DataParser& parser);
     
     /**
      * @brief Convert timestamp from nanoseconds to ROS time
@@ -121,10 +125,6 @@ private:
     
     /**
      * @brief Load and publish image
-     * @param image_path Path to the image file
-     * @param timestamp_ns Timestamp in nanoseconds
-     * @param publisher Image publisher
-     * @param frame_id Frame ID for the image
      */
     void publishImage(const std::string& image_path, uint64_t timestamp_ns, 
                      image_transport::Publisher& publisher, const std::string& frame_id);

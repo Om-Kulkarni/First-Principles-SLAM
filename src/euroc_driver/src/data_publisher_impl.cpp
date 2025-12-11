@@ -21,26 +21,16 @@ namespace euroc_driver
 			if (initializeReaders())
 			{
 				RCLCPP_INFO(this->get_logger(), "EuRoC data publisher initialized successfully");
-
-				// Start the IMU timer (also publishes pose data)
-				RCLCPP_INFO(this->get_logger(), "Starting IMU timer at %.1f Hz...", imu_rate_hz_);
-				double imu_period_ms = (1000.0 / imu_rate_hz_) / playback_rate_;
-				imu_timer_ = this->create_wall_timer(
-						std::chrono::duration<double, std::milli>(imu_period_ms),
-						std::bind(&DataPublisher::publishIMULoop, this));
-
-				// Start the camera timer
-				if (publish_images_)
-				{
-					RCLCPP_INFO(this->get_logger(), "Starting camera timer at %.1f Hz...", camera_rate_hz_);
-					double camera_period_ms = (1000.0 / camera_rate_hz_) / playback_rate_;
-					camera_timer_ = this->create_wall_timer(
-							std::chrono::duration<double, std::milli>(camera_period_ms),
-							std::bind(&DataPublisher::publishCameraLoop, this));
-				}
-
+				
 				is_playing_ = true;
 				start_time_ = std::chrono::steady_clock::now();
+				
+				// Calculate start timestamp (min of all streams)
+				// initializeReaders() already primed the streams so we look at them
+				// Actually playbackLoop does step 1: Find earliest start time.
+				
+				RCLCPP_INFO(this->get_logger(), "Starting playback thread...");
+				playback_thread_ = std::thread(&DataPublisher::playbackLoop, this);
 			}
 			else
 			{
@@ -57,6 +47,10 @@ namespace euroc_driver
 	DataPublisher::~DataPublisher()
 	{
 		is_playing_ = false;
+		if (playback_thread_.joinable())
+		{
+			playback_thread_.join();
+		}
 	}
 
 	void DataPublisher::initializeParameters()
@@ -97,6 +91,8 @@ namespace euroc_driver
 		pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 100);
 		velocity_publisher_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("velocity", 100);
 
+		initializeClock();
+
 		// Initialize image transport publishers directly using raw node pointer
 		if (publish_images_)
 		{
@@ -104,6 +100,11 @@ namespace euroc_driver
 			image_publisher_cam1_ = image_transport::create_publisher(this, "cam1/image_raw");
 			RCLCPP_INFO(this->get_logger(), "Image transport publishers initialized");
 		}
+	}
+
+	void DataPublisher::initializeClock()
+	{
+		clock_publisher_ = this->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::ClockQoS());
 	}
 
 	bool DataPublisher::initializeReaders()
@@ -166,160 +167,213 @@ namespace euroc_driver
 			return false;
 		}
 
+		// Activate streams and prime them
+		state_imu_.active = true;
+		advanceStream(state_imu_, *imu_reader_, *imu_parser_);
+
+		state_pose_.active = true;
+		advanceStream(state_pose_, *pose_reader_, *pose_parser_);
+
+		if (cam0_reader_)
+		{
+			state_cam0_.active = true;
+			advanceStream(state_cam0_, *cam0_reader_, *cam0_parser_);
+		}
+
+		if (cam1_reader_)
+		{
+			state_cam1_.active = true;
+			advanceStream(state_cam1_, *cam1_reader_, *cam1_parser_);
+		}
+
 		return true;
 	}
 
-	void DataPublisher::publishIMULoop()
+	void DataPublisher::advanceStream(StreamState& state, CSVReader& reader, DataParser& parser)
 	{
-		if (!is_playing_)
+		if (!state.active) return;
+		
+		if (reader.readNextRow(state.raw_row))
 		{
-			return;
-		}
-
-		// Publish IMU and pose data at IMU rate
-		publishIMUData();
-		publishPoseData();
-	}
-
-	void DataPublisher::publishCameraLoop()
-	{
-		if (!is_playing_)
-		{
-			return;
-		}
-
-		// Publish camera data at camera rate
-		publishCameraData();
-	}
-
-	void DataPublisher::publishIMUData()
-	{
-		std::vector<std::string> row;
-
-		while (imu_reader_->readNextRow(row))
-		{
-			if (!imu_parser_->parseRow(row))
+			if (parser.parseRow(state.raw_row))
 			{
-				continue;
+				state.timestamp_ns = parser.getTimestamp();
+				state.has_data = true;
+			}
+			else
+			{
+				// Sort of a skip, try again recursively or just mark no data effectively
+				// Ideally we loop till valid data or EOF, but for now let's just recurse once or mark bad
+				// A simple loop here is safer:
+				while (reader.readNextRow(state.raw_row)) {
+					if (parser.parseRow(state.raw_row)) {
+						state.timestamp_ns = parser.getTimestamp();
+						state.has_data = true;
+						return;
+					}
+				}
+				state.has_data = false;
+			}
+		}
+		else
+		{
+			state.has_data = false;
+		}
+	}
+
+	void DataPublisher::playbackLoop()
+	{
+		// 1. Find the earliest start time to baseline
+		start_timestamp_ = state_imu_.timestamp_ns; // Default to IMU
+		
+		// 2. Main loop
+		while (rclcpp::ok() && is_playing_)
+		{
+			// Find stream with minimum timestamp
+			StreamState* best_stream = nullptr;
+			uint64_t best_time = std::numeric_limits<uint64_t>::max();
+			std::string best_name = "";
+
+			// Check IMU
+			if (state_imu_.has_data && state_imu_.timestamp_ns < best_time)
+			{
+				best_time = state_imu_.timestamp_ns;
+				best_stream = &state_imu_;
+				best_name = "IMU";
+			}
+			
+			// Check Cam0
+			if (state_cam0_.has_data && state_cam0_.timestamp_ns < best_time)
+			{
+				best_time = state_cam0_.timestamp_ns;
+				best_stream = &state_cam0_;
+				best_name = "Cam0";
 			}
 
-			uint64_t timestamp_ns = imu_parser_->getTimestamp();
-
-			const auto &imu_data = imu_parser_->getData(); // Create and publish IMU message
-			auto imu_msg = sensor_msgs::msg::Imu();
-			imu_msg.header.stamp = convertTimestamp(timestamp_ns);
-			imu_msg.header.frame_id = "imu0";
-
-			// Angular velocity
-			imu_msg.angular_velocity.x = imu_data.angular_velocity_x;
-			imu_msg.angular_velocity.y = imu_data.angular_velocity_y;
-			imu_msg.angular_velocity.z = imu_data.angular_velocity_z;
-
-			// Linear acceleration
-			imu_msg.linear_acceleration.x = imu_data.linear_acceleration_x;
-			imu_msg.linear_acceleration.y = imu_data.linear_acceleration_y;
-			imu_msg.linear_acceleration.z = imu_data.linear_acceleration_z;
-
-			// Set covariances (unknown, so set to -1)
-			for (int i = 0; i < 9; ++i)
+			// Check Cam1
+			if (state_cam1_.has_data && state_cam1_.timestamp_ns < best_time)
 			{
-				imu_msg.angular_velocity_covariance[i] = -1.0;
-				imu_msg.linear_acceleration_covariance[i] = -1.0;
-				imu_msg.orientation_covariance[i] = -1.0;
+				best_time = state_cam1_.timestamp_ns;
+				best_stream = &state_cam1_;
+				best_name = "Cam1";
 			}
 
-			imu_publisher_->publish(imu_msg);
-			break; // Process one message per loop iteration
-		}
-	}
-
-	void DataPublisher::publishPoseData()
-	{
-		std::vector<std::string> row;
-
-		while (pose_reader_->readNextRow(row))
-		{
-			if (!pose_parser_->parseRow(row))
+			// Check Pose
+			if (state_pose_.has_data && state_pose_.timestamp_ns < best_time)
 			{
-				continue;
+				best_time = state_pose_.timestamp_ns;
+				best_stream = &state_pose_;
+				best_name = "Pose";
 			}
 
-			uint64_t timestamp_ns = pose_parser_->getTimestamp();
-
-			const auto &pose_data = pose_parser_->getData();
-
-			// Create and publish pose message
-			auto pose_msg = geometry_msgs::msg::PoseStamped();
-			pose_msg.header.stamp = convertTimestamp(timestamp_ns);
-			pose_msg.header.frame_id = "world";
-
-			pose_msg.pose.position.x = pose_data.position_x;
-			pose_msg.pose.position.y = pose_data.position_y;
-			pose_msg.pose.position.z = pose_data.position_z;
-
-			pose_msg.pose.orientation.w = pose_data.quaternion_w;
-			pose_msg.pose.orientation.x = pose_data.quaternion_x;
-			pose_msg.pose.orientation.y = pose_data.quaternion_y;
-			pose_msg.pose.orientation.z = pose_data.quaternion_z;
-
-			pose_publisher_->publish(pose_msg);
-
-			// Create and publish velocity message
-			auto velocity_msg = geometry_msgs::msg::TwistStamped();
-			velocity_msg.header.stamp = convertTimestamp(timestamp_ns);
-			velocity_msg.header.frame_id = "world";
-
-			velocity_msg.twist.linear.x = pose_data.velocity_x;
-			velocity_msg.twist.linear.y = pose_data.velocity_y;
-			velocity_msg.twist.linear.z = pose_data.velocity_z;
-
-			velocity_publisher_->publish(velocity_msg);
-			break; // Process one message per loop iteration
-		}
-	}
-
-	void DataPublisher::publishCameraData()
-	{
-		// Publish cam0 data
-		if (cam0_reader_ && cam0_parser_)
-		{
-			std::vector<std::string> row;
-			while (cam0_reader_->readNextRow(row))
+			if (!best_stream)
 			{
-				if (!cam0_parser_->parseRow(row))
+				// No more data in any stream
+				if (loop_playback_)
 				{
+					resetReaders();
 					continue;
 				}
+				else
+				{
+					RCLCPP_INFO(this->get_logger(), "End of dataset reached.");
+					break;
+				}
+			}
 
-				uint64_t timestamp_ns = cam0_parser_->getTimestamp();
+			// Publish Clock
+			rosgraph_msgs::msg::Clock clock_msg;
+			clock_msg.clock = convertTimestamp(best_time);
+			clock_publisher_->publish(clock_msg);
+
+			// Realtime Factor throttle
+			// Calculate Sim Time elapsed
+			double sim_elapsed = (best_time - start_timestamp_) * 1e-9;
+			// Calculate Real Time elapsed
+			auto now = std::chrono::steady_clock::now();
+			double real_elapsed = std::chrono::duration<double>(now - start_time_).count();
+			
+			double target_real_time = sim_elapsed / playback_rate_;
+			
+			if (real_elapsed < target_real_time)
+			{
+				std::this_thread::sleep_for(std::chrono::duration<double>(target_real_time - real_elapsed));
+			}
+
+			// Publish Data
+			if (best_name == "IMU")
+			{
+				const auto &imu_data = imu_parser_->getData();
+				auto imu_msg = sensor_msgs::msg::Imu();
+				imu_msg.header.stamp = convertTimestamp(best_time);
+				imu_msg.header.frame_id = "imu0";
+
+				imu_msg.angular_velocity.x = imu_data.angular_velocity_x;
+				imu_msg.angular_velocity.y = imu_data.angular_velocity_y;
+				imu_msg.angular_velocity.z = imu_data.angular_velocity_z;
+
+				imu_msg.linear_acceleration.x = imu_data.linear_acceleration_x;
+				imu_msg.linear_acceleration.y = imu_data.linear_acceleration_y;
+				imu_msg.linear_acceleration.z = imu_data.linear_acceleration_z;
+
+				for (int i = 0; i < 9; ++i) {
+					imu_msg.angular_velocity_covariance[i] = -1.0;
+					imu_msg.linear_acceleration_covariance[i] = -1.0;
+					imu_msg.orientation_covariance[i] = -1.0;
+				}
+				imu_publisher_->publish(imu_msg);
+				advanceStream(state_imu_, *imu_reader_, *imu_parser_);
+			}
+			else if (best_name == "Cam0")
+			{
 				const auto &cam_data = cam0_parser_->getData();
-				publishImage(cam_data.filename, timestamp_ns, image_publisher_cam0_, "cam0");
-				break;
+				publishImage(cam_data.filename, best_time, image_publisher_cam0_, "cam0");
+				advanceStream(state_cam0_, *cam0_reader_, *cam0_parser_);
+
 			}
-		}
-
-		// Publish cam1 data
-		if (cam1_reader_ && cam1_parser_)
-		{
-			std::vector<std::string> row;
-			while (cam1_reader_->readNextRow(row))
+			else if (best_name == "Cam1")
 			{
-				if (!cam1_parser_->parseRow(row))
-				{
-					continue;
-				}
-
-				uint64_t timestamp_ns = cam1_parser_->getTimestamp();
 				const auto &cam_data = cam1_parser_->getData();
-				publishImage(cam_data.filename, timestamp_ns, image_publisher_cam1_, "cam1");
-				break;
+				publishImage(cam_data.filename, best_time, image_publisher_cam1_, "cam1");
+				advanceStream(state_cam1_, *cam1_reader_, *cam1_parser_);
+			}
+			else if (best_name == "Pose")
+			{
+				const auto &pose_data = pose_parser_->getData();
+				
+				auto pose_msg = geometry_msgs::msg::PoseStamped();
+				pose_msg.header.stamp = convertTimestamp(best_time);
+				pose_msg.header.frame_id = "world";
+
+				pose_msg.pose.position.x = pose_data.position_x;
+				pose_msg.pose.position.y = pose_data.position_y;
+				pose_msg.pose.position.z = pose_data.position_z;
+
+				pose_msg.pose.orientation.w = pose_data.quaternion_w;
+				pose_msg.pose.orientation.x = pose_data.quaternion_x;
+				pose_msg.pose.orientation.y = pose_data.quaternion_y;
+				pose_msg.pose.orientation.z = pose_data.quaternion_z;
+
+				pose_publisher_->publish(pose_msg);
+
+				auto velocity_msg = geometry_msgs::msg::TwistStamped();
+				velocity_msg.header.stamp = convertTimestamp(best_time);
+				velocity_msg.header.frame_id = "world";
+
+				velocity_msg.twist.linear.x = pose_data.velocity_x;
+				velocity_msg.twist.linear.y = pose_data.velocity_y;
+				velocity_msg.twist.linear.z = pose_data.velocity_z;
+
+				velocity_publisher_->publish(velocity_msg);
+				
+				advanceStream(state_pose_, *pose_reader_, *pose_parser_);
 			}
 		}
 	}
 
 	rclcpp::Time DataPublisher::convertTimestamp(uint64_t timestamp_ns)
 	{
-		return rclcpp::Time(timestamp_ns);
+		return rclcpp::Time(timestamp_ns, RCL_ROS_TIME);
 	}
 
 	void DataPublisher::publishImage(const std::string &raw_path, uint64_t timestamp_ns,
@@ -333,7 +387,6 @@ namespace euroc_driver
 			image_path.erase(std::remove(image_path.begin(), image_path.end(), '\r'), image_path.end());
 			image_path.erase(std::remove(image_path.begin(), image_path.end(), '\n'), image_path.end());
 
-			// 2. VERIFY FILE EXISTENCE (Debug step)
 			if (!std::filesystem::exists(image_path))
 			{
 				RCLCPP_ERROR(this->get_logger(),
@@ -376,7 +429,14 @@ namespace euroc_driver
 		if (cam1_reader_)
 			cam1_reader_->reset(true);
 
-		start_timestamp_ = 0;
+		// Re-prime
+		advanceStream(state_imu_, *imu_reader_, *imu_parser_);
+		advanceStream(state_pose_, *pose_reader_, *pose_parser_);
+		if(state_cam0_.active) advanceStream(state_cam0_, *cam0_reader_, *cam0_parser_);
+		if(state_cam1_.active) advanceStream(state_cam1_, *cam1_reader_, *cam1_parser_);
+
+		// Reset time reference
+		start_timestamp_ = state_imu_.timestamp_ns; // Or closest
 		start_time_ = std::chrono::steady_clock::now();
 	}
 
