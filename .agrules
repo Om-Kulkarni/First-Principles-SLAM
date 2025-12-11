@@ -1,0 +1,49 @@
+# ROS 2 C++ Development Rules
+
+## 1. General Architecture & Composition
+- **Inheritance:** All nodes must inherit from `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode`.
+- **Composition:** strictly prefer **Component-based** architecture.
+  - Do NOT write a `main()` function inside the node source file.
+  - Register nodes using `RCLCPP_COMPONENTS_REGISTER_NODE` in a dedicated source file or at the bottom of the implementation.
+  - Design nodes to be potentially loaded into a `rclcpp_components::ComponentManager` container.
+- **constructors:** Node constructors must take `const rclcpp::NodeOptions & options` as an argument and pass it to the base class.
+
+## 2. Naming Conventions (Strict)
+- **Files:** Use `snake_case` for filenames (e.g., `camera_driver_node.cpp`).
+- **Classes:** Use `PascalCase` for class names (e.g., `CameraDriver`).
+- **Variables/Functions:** Use `snake_case` (e.g., `publish_image()`, `sensor_data_`).
+- **Member Variables:** End private member variables with a trailing underscore (e.g., `publisher_`, `timer_`).
+- **Topics/Services:** Use `snake_case` with meaningful hierarchy (e.g., `/camera/front/image_raw`).
+
+## 3. Modern C++ Standards (C++17/20)
+- **Smart Pointers:** Use `std::shared_ptr` and `std::unique_ptr` exclusively. Avoid raw `new/delete`.
+- **RCPP Smart Pointers:** Use ROS aliases like `Message::SharedPtr` or `Message::UniquePtr` when available.
+- **Lambdas:** Prefer lambda functions for simple callbacks to keep code localized.
+- **Typing:** Use `auto` only when the type is obvious (e.g., `auto msg = std::make_unique<MsgType>()`). explicit types are preferred for function signatures.
+
+## 4. Communication & Data
+- **Zero-Copy:** When publishing large data (images, point clouds), use `std::unique_ptr` to enable zero-copy transport for intra-process communication.
+- **QoS:** Explicitly define Quality of Service (QoS) profiles. Do not rely on defaults for sensor data (use `rclcpp::SensorDataQoS()`).
+- **Parameters:**
+  - Declare all parameters in the constructor (or `on_configure` for lifecycle nodes).
+  - Use `OnSetParametersCallbackHandle` to handle dynamic parameter updates at runtime.
+
+## 5. Logging & Error Handling
+- **Macros:** Use `RCLCPP_INFO`, `RCLCPP_WARN`, `RCLCPP_ERROR` macros taking `this->get_logger()`.
+- **Exceptions:** Use exceptions for fatal setup errors, but handle runtime errors gracefully without crashing the node.
+- **Throttle:** Use `RCLCPP_INFO_THROTTLE` for recurring logs inside loops to prevent spam.
+
+## Anti-Patterns (Avoid)
+- **No blocking in callbacks**: Never use `sleep()` or blocking I/O in timer callbacks
+- **No manual spin loops**: Don't write `while(rclcpp::ok())` - use `rclcpp::spin(node)` in `main()`
+- **No global state**: Encapsulate all state in node class members
+- **No standalone main inside node impl**: Keep `main()` in separate `.cpp` file
+- **No Rushing in to code**: Do not rush into coding without proper planning and analysis
+
+## Environment & Execution (CRITICAL)
+- **Context:** This project relies on a docker container named `fp_slam_container` for all dependencies.
+- **Restriction:** The host machine does NOT have ROS2 installed. NEVER try to run `colcon`, `ros2`, or `pytest` directly.
+- **Command Pattern:** You must execute all build and test commands inside the container using the helper script.
+    - **Bad:** `colcon build`
+    - **Good:** `./docker/exec.sh colcon build`
+- **File Edits:** You may edit files normally on the host (files are volume-mounted), but you must verify them via the container.
