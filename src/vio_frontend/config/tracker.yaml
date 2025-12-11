@@ -1,0 +1,8 @@
+feature_tracker:
+  ros__parameters:
+    max_features: 150
+    min_dist: 30
+    use_ransac: true
+    cam0:
+      intrinsics: [458.654, 457.296, 367.215, 248.375] # [fu, fv, cu, cv]
+      distortion_coefficients: [-0.28340811, 0.07395907, 0.00019359, 1.76187114e-05]
