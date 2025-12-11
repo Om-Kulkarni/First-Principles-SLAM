@@ -19,7 +19,9 @@ add_library(imu_preintegrator src/imu_preintegrator.cpp)
 target_include_directories(imu_preintegrator PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  ${Eigen3_INCLUDE_DIRS}
+)
+target_link_libraries(imu_preintegrator
+  Eigen3::Eigen
 )
 ament_target_dependencies(imu_preintegrator
   rclcpp
@@ -49,6 +51,10 @@ if(BUILD_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_preintegration test/test_preintegration.cpp)
+  target_link_libraries(test_preintegration imu_preintegrator)
 endif()
 
 ament_package()
