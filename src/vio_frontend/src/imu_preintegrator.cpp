@@ -1,4 +1,4 @@
-#include "inertial_frontend/imu_preintegrator.hpp"
+#include "vio_frontend/imu_preintegrator.hpp"
 #include <iostream>
 
 namespace inertial_frontend {

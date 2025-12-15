@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "inertial_frontend/imu_preintegrator.hpp"
+#include "vio_frontend/imu_preintegrator.hpp"
 
 using namespace inertial_frontend;
 

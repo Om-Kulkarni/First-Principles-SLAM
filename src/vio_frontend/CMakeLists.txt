@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Feature.msg"
@@ -45,7 +46,7 @@ rosidl_target_interfaces(estimator
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
 add_executable(tracker_check 
-  src/tracker_check.cpp 
+  src/tracker_check.cpp
   src/feature_tracker.cpp
 )
 target_link_libraries(tracker_check ${OpenCV_LIBS})
@@ -85,7 +86,22 @@ add_executable(feature_tracker_node src/feature_tracker_main.cpp)
 target_link_libraries(feature_tracker_node feature_tracker_component)
 ament_target_dependencies(feature_tracker_node "rclcpp")
 
-install(TARGETS estimator tracker_check feature_tracker_node feature_tracker_component
+add_library(imu_preintegrator src/imu_preintegrator.cpp)
+target_include_directories(imu_preintegrator PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(imu_preintegrator
+  Eigen3::Eigen
+)
+ament_target_dependencies(imu_preintegrator
+  rclcpp
+  sensor_msgs
+  std_msgs
+  geometry_msgs
+)
+
+install(TARGETS estimator tracker_check feature_tracker_node feature_tracker_component imu_preintegrator
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config
@@ -102,6 +118,10 @@ if(BUILD_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_preintegration test/test_preintegration.cpp)
+  target_link_libraries(test_preintegration imu_preintegrator)
 endif()
 
 ament_package()

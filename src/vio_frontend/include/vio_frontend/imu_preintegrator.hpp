@@ -1,8 +1,8 @@
-#ifndef INERTIAL_FRONTEND_IMU_PREINTEGRATOR_HPP_
-#define INERTIAL_FRONTEND_IMU_PREINTEGRATOR_HPP_
+#ifndef VIO_FRONTEND_IMU_PREINTEGRATOR_HPP_
+#define VIO_FRONTEND_IMU_PREINTEGRATOR_HPP_
 
 #include <rclcpp/rclcpp.hpp>
-#include <inertial_frontend/preintegrated_imu_measurement.hpp>
+#include <vio_frontend/preintegrated_imu_measurement.hpp>
 
 namespace inertial_frontend {
 
@@ -65,4 +65,4 @@ class ImuPreintegrator {
 
 }  // namespace inertial_frontend
 
-#endif  // INERTIAL_FRONTEND_IMU_PREINTEGRATOR_HPP_
+#endif  // VIO_FRONTEND_IMU_PREINTEGRATOR_HPP_
