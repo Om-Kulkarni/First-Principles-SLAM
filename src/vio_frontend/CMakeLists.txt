@@ -63,20 +63,6 @@ rclcpp_components_register_node(${PROJECT_NAME}_lib
   EXECUTABLE vio_frontend_node
 )
 
-add_executable(tracker_check
-  src/tracker_check.cpp
-  src/feature_tracker.cpp
-)
-target_link_libraries(tracker_check ${OpenCV_LIBS})
-rosidl_target_interfaces(tracker_check
-  ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_include_directories(tracker_check PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(tracker_check
-  "rclcpp"
-  "sensor_msgs"
-)
 
 # Install shared library to lib/ so it can be found
 install(TARGETS ${PROJECT_NAME}_lib
@@ -86,9 +72,6 @@ install(TARGETS ${PROJECT_NAME}_lib
 )
 
 # Install executables to lib/${PROJECT_NAME} (libexec)
-install(TARGETS tracker_check
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
@@ -104,6 +87,9 @@ if(BUILD_TESTING)
   
   # ament_add_gtest(test_preintegration test/test_preintegration.cpp)
   # target_link_libraries(test_preintegration ${PROJECT_NAME}_lib Eigen3::Eigen)
+  ament_add_gtest(tracker_test test/tracker_test.cpp)
+  target_link_libraries(tracker_test ${PROJECT_NAME}_lib Eigen3::Eigen)
+  ament_target_dependencies(tracker_test OpenCV)
 endif()
 
 ament_package()
