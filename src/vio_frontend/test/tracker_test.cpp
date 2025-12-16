@@ -109,6 +109,7 @@ TEST_F(TrackerTest, CalculatesVelocity) {
 
   // Velocity is in normalized coordinates, not pixels!
   // We just check it's non-zero and in right direction
+  std::cout << "Horizontal Velocity: " << f.velocity_x << " Vertical Velocity: " << f.velocity_y << std::endl;
   EXPECT_GT(f.velocity_x, 0.0);
   EXPECT_NEAR(f.velocity_y, 0.0, 0.1); // Should be roughly 0 vertical velocity
 }
