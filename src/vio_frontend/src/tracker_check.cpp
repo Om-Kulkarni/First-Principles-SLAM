@@ -30,14 +30,14 @@ int main(int argc, char** argv) {
 
     // Frame 1
     auto tracks1 = tracker.track_features(img1, 0);
-    std::cout << "Frame 1: Found " << tracks1.features.size() << " features" << std::endl;
+    std::cout << "Frame 1: Found " << tracks1.size() << " features" << std::endl;
     
     // Frame 2
     auto tracks2 = tracker.track_features(img2, 100000000); // dt = 0.1s = 100ms = 100e6 ns
-    std::cout << "Frame 2: Tracked " << tracks2.features.size() << " features" << std::endl;
+    std::cout << "Frame 2: Tracked " << tracks2.size() << " features" << std::endl;
 
-    if (!tracks2.features.empty()) {
-        auto f = tracks2.features[0];
+    if (!tracks2.empty()) {
+        auto f = tracks2[0];
         std::cout << "Feature 0: u=" << f.u << ", v=" << f.v 
                   << " | u_norm=" << f.u_norm << ", v_norm=" << f.v_norm 
                   << " | vel=(" << f.velocity_x << "," << f.velocity_y << ")" << std::endl;

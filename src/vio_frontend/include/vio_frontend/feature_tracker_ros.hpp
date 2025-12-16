@@ -6,29 +6,25 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include "vio_frontend/feature_tracker.hpp"
-#include "vio_frontend/msg/feature_measurement.hpp"
+#include "vio_frontend/msg/vio_update.hpp"
 
 namespace vio_frontend {
 
-class FeatureTrackerNode : public rclcpp::Node {
+// Callback type: vector of features, timestamp
+using FeaturesCallback = std::function<void(const std::vector<vio_frontend::msg::Feature>&, double)>;
+
+class FeatureTrackerROS {
 public:
-    explicit FeatureTrackerNode(const rclcpp::NodeOptions & options);
+    FeatureTrackerROS(rclcpp::Node* node, FeaturesCallback callback);
 
 private:
-    /**
-     * @brief Image callback
-     */
     void img_callback(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
-
-    /**
-     * @brief Load parameters from config
-     */
-    void load_parameters();
+    void load_parameters(rclcpp::Node* node);
 
     image_transport::Subscriber sub_img_;
-    rclcpp::Publisher<vio_frontend::msg::FeatureMeasurement>::SharedPtr pub_feature_;
-    
     std::unique_ptr<FeatureTracker> tracker_;
+    FeaturesCallback callback_;
+    rclcpp::Logger logger_;
 };
 
 } // namespace vio_frontend
