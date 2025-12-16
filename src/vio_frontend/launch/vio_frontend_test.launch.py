@@ -27,7 +27,7 @@ def generate_launch_description():
     # Launch Feature Tracker
     tracker_node = Node(
         package="vio_frontend",
-        executable="feature_tracker_node",
+        executable="vio_frontend_node",
         name="feature_tracker",
         output="screen",
         parameters=[tracker_config],
