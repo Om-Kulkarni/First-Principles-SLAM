@@ -15,7 +15,7 @@ ImuPreintegratorROS::ImuPreintegratorROS(rclcpp::Node* node) : logger_(node->get
     preintegrator_ = std::make_unique<inertial_frontend::ImuPreintegrator>(ba, bg);
 
     sub_imu_ = node->create_subscription<sensor_msgs::msg::Imu>(
-        "imu0", 100, std::bind(&ImuPreintegratorROS::imu_callback, this, std::placeholders::_1));
+        "imu", 100, std::bind(&ImuPreintegratorROS::imu_callback, this, std::placeholders::_1));
 
     RCLCPP_INFO(logger_, "IMU Preintegrator ROS Initialized");
 }
