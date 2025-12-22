@@ -31,6 +31,11 @@ private:
         // 1. Get IMU Preintegration
         auto imu_measurement = imu_preintegrator_->get_integration_and_reset();
         
+        if (imu_measurement.delta_t <= 0.0) {
+            RCLCPP_DEBUG(this->get_logger(), "No IMU data integrated (dt=%.6f). Skipping VIO update.", imu_measurement.delta_t);
+            return;
+        }
+        
         // 2. Construct Message
         vio_frontend::msg::VIOUpdate msg;
         msg.header.stamp = rclcpp::Time(static_cast<uint64_t>(timestamp * 1e9));
