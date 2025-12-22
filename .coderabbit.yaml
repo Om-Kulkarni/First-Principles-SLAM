@@ -1,0 +1,8 @@
+# .coderabbit.yaml
+reviews:
+  auto_review:
+    drafts: true   # <--- This is the specific line you asked for
+    base_branches: ["main"] # Optional: Only review PRs targeting main
+  
+  # Optional: "chill" for less noise, "assertive" for strict feedback
+  profile: "chill"
