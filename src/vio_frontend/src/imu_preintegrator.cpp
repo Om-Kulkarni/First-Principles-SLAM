@@ -1,5 +1,5 @@
 #include "vio_frontend/imu_preintegrator.hpp"
-#include <iostream>
+
 
 namespace inertial_frontend {
 
@@ -67,13 +67,10 @@ void ImuPreintegrator::integrate(const Eigen::Vector3d& acc, const Eigen::Vector
   Eigen::Vector3d acc_local_0 = R_k * un_acc_0;
   Eigen::Vector3d acc_local_1 = R_next * un_acc_1;
   Eigen::Vector3d acc_local_avg = 0.5 * (acc_local_0 + acc_local_1);
-  
-  std::cout << "acc_avg: " << acc_local_avg.transpose() << " last_acc: " << last_acc_.transpose() << std::endl;
 
   // Position update: p_{k+1} = p_k + v_k * dt + 0.5 * a_local_avg * dt^2
   current_measurement_.delta_p += current_measurement_.delta_v * dt + 0.5 * acc_local_avg * dt * dt;
   current_measurement_.delta_v += acc_local_avg * dt;
-  std::cout << "New delta_v: " << current_measurement_.delta_v.transpose() << std::endl;
   current_measurement_.delta_q = delta_q_next;
   current_measurement_.delta_t += dt;
 
