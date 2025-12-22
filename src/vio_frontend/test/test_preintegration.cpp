@@ -21,17 +21,13 @@ TEST(ImuPreintegratorTest, StaticIntegration) {
   ImuPreintegrator integrator(ba, bg);
 
   double dt = 0.01;
-  Eigen::Vector3d acc(0, 0, 0); // No gravity removal in preintegration usually? 
-                                // WAIT. Standard preintegration assumes we integrate measured - bias.
-                                // If simulating static on table: acc = [0,0,g]. 
-                                // But preintegrated Delta V should be approx [0,0,g]*t?
-                                // If we don't subtract gravity in frontend (which we usually don't),
-                                // then yes, it integrates specific force.
+  // This test uses zero measured acceleration (static with acc = [0,0,0]) so preintegrated delta_v and delta_p should remain zero.
+  Eigen::Vector3d acc(0, 0, 0);
   
   Eigen::Vector3d gyro(0, 0, 0);
 
-  // Integrate for 1 second (100 intervals, so 101 measurements)
-  for(int i=0; i<=100; ++i) {
+  // Integrate for 1 second (100 intervals)
+  for(int i=0; i < 100; ++i) {
     integrator.integrate(acc, gyro, dt);
   }
 
