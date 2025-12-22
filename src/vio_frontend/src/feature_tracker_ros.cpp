@@ -33,7 +33,7 @@ void FeatureTrackerROS::load_parameters(rclcpp::Node* node) {
             0.0, intrinsics[1], intrinsics[3],
             0.0, 0.0, 1.0);
     } else {
-        RCLCPP_WARN(logger_, "Invalid camera intrinsics. Expected 4, got %lu", intrinsics.size());
+        RCLCPP_WARN(logger_, "Invalid camera intrinsics. Expected 4, got %zu", intrinsics.size());
     }
 
     // Camera Distortion
