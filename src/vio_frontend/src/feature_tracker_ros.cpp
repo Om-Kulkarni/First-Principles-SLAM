@@ -59,7 +59,7 @@ void FeatureTrackerROS::img_callback(const sensor_msgs::msg::Image::ConstSharedP
 
     // Process
     double timestamp = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
-    uint64_t timestamp_ns = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    uint64_t timestamp_ns = static_cast<uint64_t>(msg->header.stamp.sec) * 1000000000ULL + msg->header.stamp.nanosec;
     
     auto features = tracker_->track_features(cv_ptr->image, timestamp_ns);
     
