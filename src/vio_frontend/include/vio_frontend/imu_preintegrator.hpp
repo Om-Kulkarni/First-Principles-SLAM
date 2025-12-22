@@ -1,7 +1,6 @@
 #ifndef VIO_FRONTEND_IMU_PREINTEGRATOR_HPP_
 #define VIO_FRONTEND_IMU_PREINTEGRATOR_HPP_
 
-#include <rclcpp/rclcpp.hpp>
 #include <vio_frontend/preintegrated_imu_measurement.hpp>
 
 namespace inertial_frontend {

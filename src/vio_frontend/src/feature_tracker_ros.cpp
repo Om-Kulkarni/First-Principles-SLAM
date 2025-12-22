@@ -33,7 +33,8 @@ void FeatureTrackerROS::load_parameters(rclcpp::Node* node) {
             0.0, intrinsics[1], intrinsics[3],
             0.0, 0.0, 1.0);
     } else {
-        RCLCPP_WARN(logger_, "Invalid camera intrinsics. Expected 4, got %zu", intrinsics.size());
+        RCLCPP_ERROR(logger_, "Invalid camera intrinsics. Expected 4, got %zu. Feature Tracker will NOT be initialized.", intrinsics.size());
+        return;
     }
 
     // Camera Distortion
@@ -49,6 +50,10 @@ void FeatureTrackerROS::load_parameters(rclcpp::Node* node) {
 }
 
 void FeatureTrackerROS::img_callback(const sensor_msgs::msg::Image::ConstSharedPtr& msg) {
+    if (!tracker_) {
+        return;
+    }
+
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);

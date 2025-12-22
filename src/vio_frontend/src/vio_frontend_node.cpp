@@ -26,7 +26,7 @@ public:
         pub_vio_update_ = this->create_publisher<vio_frontend::msg::VIOUpdate>("vio_frontend/update", 10);
 
         // Initialize Components
-        // Order matters: Feature calback relies on IMU being ready? 
+        // Order matters: Feature callback relies on IMU being ready? 
         // Actually they are independent until the callback fires.
         
         imu_preintegrator_ = std::make_unique<ImuPreintegratorROS>(this);
