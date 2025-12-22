@@ -87,7 +87,7 @@ namespace euroc_driver
 	void DataPublisher::initializePublishers()
 	{
 		// Create publishers
-		imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data", 100);
+		imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("imu", 100);
 		pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 100);
 		velocity_publisher_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("velocity", 100);
 

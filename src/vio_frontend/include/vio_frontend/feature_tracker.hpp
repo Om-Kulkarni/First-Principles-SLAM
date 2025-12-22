@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <map>
 #include <vector>
-#include "vio_frontend/msg/feature_measurement.hpp"
+#include "vio_frontend/msg/feature.hpp"
 
 namespace vio_frontend {
 
@@ -40,9 +40,9 @@ public:
      * @brief Process a new image frame
      * @param img_curr Current grayscale image
      * @param timestamp Timestamp of the current frame
-     * @return FeatureMeasurement message containing tracks
+     * @return Vector of Feature messages
      */
-    vio_frontend::msg::FeatureMeasurement track_features(const cv::Mat& img_curr, uint64_t timestamp_ns);
+    std::vector<vio_frontend::msg::Feature> track_features(const cv::Mat& img_curr, uint64_t timestamp_ns);
 
     /**
      * @brief Get current feature tracks

@@ -7,9 +7,8 @@ FeatureTracker::FeatureTracker(const TrackerConfig& config)
     : config_(config), first_frame_(true), n_id_(0) {
 }
 
-vio_frontend::msg::FeatureMeasurement FeatureTracker::track_features(const cv::Mat& img_in, uint64_t timestamp_ns) {
-    vio_frontend::msg::FeatureMeasurement measurement;
-    measurement.header.stamp = rclcpp::Time(timestamp_ns, RCL_ROS_TIME); 
+std::vector<vio_frontend::msg::Feature> FeatureTracker::track_features(const cv::Mat& img_in, uint64_t /*timestamp_ns*/) {
+    std::vector<vio_frontend::msg::Feature> features;
  
     cv::Mat img;
     // Ensure grayscale
@@ -86,19 +85,12 @@ vio_frontend::msg::FeatureMeasurement FeatureTracker::track_features(const cv::M
                 feature_msg.v_norm = curr_norm_pts[i].y;
             }
 
-            // Velocity (pixel/sec) - Approximated from prev frame if tracked
-            // Note: This logic assumes prev_pts_ corresponds to curr_pts_ index-wise BEFORE this loop, 
-            // but we just updated prev_pts_ = - wait, we haven't updated prev_img_ yet.
-            // Actually prev_pts_ has been reduced to match curr_pts_.
-            // So prev_pts_[i] is the position of feature i in the previous frame.
             if (i < prev_pts_.size()) {
-                 feature_msg.velocity_x = (curr_pts_[i].x - prev_pts_[i].x); // Need dt for real velocity? 
+                 feature_msg.velocity_x = (curr_pts_[i].x - prev_pts_[i].x);
                  feature_msg.velocity_y = (curr_pts_[i].y - prev_pts_[i].y);
-                 // The user prompt asked for velocity (pixel/sec), but we don't store prev_timestamp.
-                 // For now, let's store pixel delta per frame.
             }
             
-            measurement.features.push_back(feature_msg);
+            features.push_back(feature_msg);
             
             tracks_[track_ids_[i]] = curr_pts_[i];
         }
@@ -107,7 +99,7 @@ vio_frontend::msg::FeatureMeasurement FeatureTracker::track_features(const cv::M
     prev_img_ = curr_img_.clone();
     prev_pts_ = curr_pts_;
 
-    return measurement;
+    return features;
 }
 
 void FeatureTracker::detect_new_features() {
