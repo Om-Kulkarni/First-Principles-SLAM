@@ -15,22 +15,24 @@ namespace inertial_frontend {
  */
 struct PreintegratedImuMeasurement {
   // Preintegrated values
-  Eigen::Vector3d delta_p;  ///< Change in position in local frame
-  Eigen::Vector3d delta_v;  ///< Change in velocity in local frame
-  Eigen::Quaterniond delta_q; ///< Change in rotation (local frame)
+  Eigen::Vector3d delta_p;  ///< Change in position in local frame (dp)
+  Eigen::Vector3d delta_v;  ///< Change in velocity in local frame (dv)
+  Eigen::Quaterniond delta_q; ///< Change in rotation (local frame) (dq)
 
   // Integration time
-  double delta_t;
+  double delta_t; ///< Total time interval integrated
 
-  // Covariance matrix (order: delta_p, delta_q, delta_v, bg, ba)
-  // Note: Order depends on convention. Standard is often:
-  // p, q, v, ba, bg (15x15) OR orientation, velocity, position...
-  // User specified 15x15.
-  // We will assume order: delta_p, delta_v, delta_q (3 vector part), ba, bg
-  // for the Jacobian structure.
-  // However, usually we preintegrate the noise, so covariance is 9x9 for p,v,q
-  // and we propagate effects of bias.
-  // User request: "covariance (The 15x15 uncertainty matrix)"
+  /**
+   * @brief Covariance matrix of the preintegration error.
+   * 
+   * Dimensions: 15x15
+   * Blocks:
+   * - [0-2]: Position error (delta_p)
+   * - [3-5]: Velocity error (delta_v)
+   * - [6-8]: Orientation error (delta_q)
+   * - [9-11]: Accelerometer bias error (b_a)
+   * - [12-14]: Gyroscope bias error (b_g)
+   */
   Eigen::Matrix<double, 15, 15> covariance;
 
   /**
@@ -40,17 +42,16 @@ struct PreintegratedImuMeasurement {
    * Approximation: value approx value_bar + J * (new_bias - old_bias)
    */
   struct Jacobians {
-    Eigen::Matrix3d dp_dba; // d(delta_p) / d(b_a)
-    Eigen::Matrix3d dp_dbg; // d(delta_p) / d(b_g)
-    Eigen::Matrix3d dv_dba; // d(delta_v) / d(b_a)
-    Eigen::Matrix3d dv_dbg; // d(delta_v) / d(b_g)
-    Eigen::Matrix3d dq_dbg; // d(delta_q) / d(b_g)
-    // Note: dq_dba is usually zero because rotation doesn't depend on accel bias in standard formulation
+    Eigen::Matrix3d dp_dba; ///< d(delta_p) / d(b_a)
+    Eigen::Matrix3d dp_dbg; ///< d(delta_p) / d(b_g)
+    Eigen::Matrix3d dv_dba; ///< d(delta_v) / d(b_a)
+    Eigen::Matrix3d dv_dbg; ///< d(delta_v) / d(b_g)
+    Eigen::Matrix3d dq_dbg; ///< d(delta_q) / d(b_g)
   } jacobians;
 
   // Biases used during preintegration (needed for repropagation check)
-  Eigen::Vector3d bias_a;
-  Eigen::Vector3d bias_g;
+  Eigen::Vector3d bias_a; ///< Accelerometer bias used during integration
+  Eigen::Vector3d bias_g; ///< Gyroscope bias used during integration
 
   PreintegratedImuMeasurement() {
     delta_p.setZero();

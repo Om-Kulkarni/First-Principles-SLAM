@@ -5,8 +5,20 @@
 
 namespace vio_frontend {
 
+/**
+ * @brief Main VIO Frontend Node
+ * 
+ * Orchestrates the Feature Tracker and IMU Preintegrator. 
+ * Publishes synchronized VIO updates containing feature tracks and preintegrated
+ * IMU measurements for the backend/estimator.
+ */
 class VioFrontendNode : public rclcpp::Node {
 public:
+    /**
+     * @brief Construct a new Vio Frontend Node object
+     * 
+     * @param options ROS 2 Node options
+     */
     explicit VioFrontendNode(const rclcpp::NodeOptions & options)
         : Node("vio_frontend_node", options) {
         
